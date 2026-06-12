@@ -8,14 +8,23 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,560;9..144,600&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://accounts.google.com/gsi/client" async></script>
+<script>(function(){try{var t=localStorage.getItem("theme");if(!t)t=matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";if(t==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <style>
   :root{
     --bg:#FBF9F4; --ink:#1B1A17; --muted:#8A857B; --line:#E7E2D6;
     --accent:#E1521D; --accent-soft:#FBE7DC; --green:#5C7A52; --card:#FFFFFF;
+    --chip-bd:#f3cdb9; --chip-miss-bg:#f4f1ea; --mic-glow:rgba(225,82,29,.35); --offline-bg:#fbe7dc;
     --shadow:0 1px 2px rgba(27,26,23,.04), 0 8px 24px rgba(27,26,23,.05);
+  }
+  html[data-theme="dark"]{
+    --bg:#141218; --ink:#ECEAF2; --muted:#9B94A8; --line:#2B2833;
+    --accent:#B49DFF; --accent-soft:#2A2440; --green:#9DBF8E; --card:#1E1B24;
+    --chip-bd:#4A3F6B; --chip-miss-bg:#232029; --mic-glow:rgba(180,157,255,.40); --offline-bg:#2A2440;
+    --shadow:0 1px 2px rgba(0,0,0,.3), 0 10px 28px rgba(0,0,0,.45);
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
   html,body{margin:0; background:var(--bg); color:var(--ink); font-family:"IBM Plex Sans",system-ui,sans-serif;}
+  ::placeholder{color:var(--muted); opacity:1;}
   .wrap{max-width:480px; margin:0 auto; min-height:100dvh; padding:20px 18px 40px; display:flex; flex-direction:column;}
   header{display:flex; align-items:baseline; justify-content:space-between; margin-bottom:6px;}
   .brand{font-family:"Fraunces",serif; font-weight:600; font-size:22px; letter-spacing:-.01em;}
@@ -32,7 +41,7 @@
   .total .meal{font-family:"IBM Plex Mono",monospace; font-size:11px; color:var(--muted);}
   .total .meal b{color:var(--ink); font-weight:600;}
   .console{display:flex; flex-direction:column; align-items:center; gap:14px; margin-bottom:14px;}
-  .mic{position:relative; width:84px; height:84px; border-radius:50%; border:none; cursor:pointer; background:var(--accent); color:#fff; display:grid; place-items:center; box-shadow:0 10px 30px rgba(225,82,29,.35); transition:transform .12s ease;}
+  .mic{position:relative; width:84px; height:84px; border-radius:50%; border:none; cursor:pointer; background:var(--accent); color:#fff; display:grid; place-items:center; box-shadow:0 10px 30px var(--mic-glow); transition:transform .12s ease;}
   .mic:active{transform:scale(.95);}
   .mic svg{width:34px; height:34px;}
   .mic.listening{animation:bob 1.4s ease-in-out infinite;}
@@ -45,11 +54,11 @@
   .field{width:100%; display:flex; gap:8px;}
   .field input{flex:1; font-family:"IBM Plex Sans",sans-serif; font-size:15px; color:var(--ink); background:var(--card); border:1px solid var(--line); border-radius:14px; padding:13px 15px; outline:none;}
   .field input:focus{border-color:var(--accent);}
-  .field .go{background:var(--ink); color:#fff; border:none; border-radius:14px; padding:0 18px; font-family:"IBM Plex Sans",sans-serif; font-size:15px; font-weight:600; cursor:pointer;}
+  .field .go{background:var(--ink); color:var(--bg); border:none; border-radius:14px; padding:0 18px; font-family:"IBM Plex Sans",sans-serif; font-size:15px; font-weight:600; cursor:pointer;}
   .field .go:active{opacity:.85;}
   .preview{display:flex; flex-wrap:wrap; gap:7px; margin-top:2px;}
-  .chip{font-family:"IBM Plex Mono",monospace; font-size:12px; padding:6px 10px; border-radius:999px; background:var(--accent-soft); color:var(--accent); border:1px solid #f3cdb9;}
-  .chip.miss{background:#f4f1ea; color:var(--muted); border-color:var(--line);}
+  .chip{font-family:"IBM Plex Mono",monospace; font-size:12px; padding:6px 10px; border-radius:999px; background:var(--accent-soft); color:var(--accent); border:1px solid var(--chip-bd);}
+  .chip.miss{background:var(--chip-miss-bg); color:var(--muted); border-color:var(--line);}
   .pending{margin-top:10px;}
   .pending .pendlab{font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin-bottom:7px;}
   .pending .chips{display:flex; flex-wrap:wrap; gap:7px;}
@@ -61,7 +70,7 @@
   .pendgroup .chip.add{background:var(--card);}
   .tabs{display:flex; gap:6px; margin:18px 0 10px;}
   .tabs button{flex:1; font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.08em; text-transform:uppercase; padding:9px 0; border-radius:10px; border:1px solid var(--line); background:var(--card); color:var(--muted); cursor:pointer;}
-  .tabs button.on{background:var(--ink); color:#fff; border-color:var(--ink);}
+  .tabs button.on{background:var(--ink); color:var(--bg); border-color:var(--ink);}
   .log{list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:8px;}
   .row{display:flex; align-items:center; gap:12px; background:var(--card); border:1px solid var(--line); border-radius:14px; padding:12px 14px; box-shadow:var(--shadow);}
   .row .nm{flex:1; font-size:15px; font-weight:500;}
@@ -82,11 +91,12 @@
   .refrow .rv{color:var(--muted);}
   .refrow .rdel{background:none;border:none;color:var(--muted);cursor:pointer;font-size:15px;}
   .addref{display:flex; gap:6px; margin-top:12px; flex-wrap:wrap;}
-  .addref input,.addref select{font-family:"IBM Plex Mono",monospace; font-size:12px; padding:8px 9px; border:1px solid var(--line); border-radius:9px; background:var(--card); outline:none; min-width:0;}
+  .addref input,.addref select{font-family:"IBM Plex Mono",monospace; font-size:12px; padding:8px 9px; border:1px solid var(--line); border-radius:9px; background:var(--card); color:var(--ink); outline:none; min-width:0;}
+  .addref select option{background:var(--card); color:var(--ink);}
   .addref input.nm{flex:2 1 110px;} .addref input.cl{flex:1 1 60px;} .addref select{flex:1 1 70px;}
-  .addref button{background:var(--green); color:#fff; border:none; border-radius:9px; padding:8px 14px; font-family:"IBM Plex Sans",sans-serif; font-size:13px; font-weight:600; cursor:pointer;}
+  .addref button{background:var(--green); color:var(--bg); border:none; border-radius:9px; padding:8px 14px; font-family:"IBM Plex Sans",sans-serif; font-size:13px; font-weight:600; cursor:pointer;}
   .note{font-family:"IBM Plex Mono",monospace; font-size:10.5px; color:var(--muted); line-height:1.6; margin-top:14px;}
-  .offline{background:#fbe7dc; color:var(--accent); font-family:"IBM Plex Mono",monospace; font-size:11px; text-align:center; padding:8px; border-radius:10px; margin-bottom:10px; display:none;}
+  .offline{background:var(--offline-bg); color:var(--accent); font-family:"IBM Plex Mono",monospace; font-size:11px; text-align:center; padding:8px; border-radius:10px; margin-bottom:10px; display:none;}
   .login{position:fixed; inset:0; background:var(--bg); display:none; place-items:center; z-index:50; padding:24px;}
   .loginCard{background:var(--card); border:1px solid var(--line); border-radius:20px; box-shadow:var(--shadow); padding:34px 30px; text-align:center; max-width:340px; width:100%;}
   .loginCard .brand{font-family:"Fraunces",serif; font-weight:600; font-size:30px; margin-bottom:10px;}
@@ -107,11 +117,17 @@
   .acctBox{display:flex; align-items:center; justify-content:space-between; gap:10px; padding:12px 14px; background:var(--card); border:1px solid var(--line); border-radius:14px;}
   .acctBox .who{font-family:"IBM Plex Mono",monospace; font-size:11px; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
   .acctBox button{background:none; border:1px solid var(--line); color:var(--muted); border-radius:8px; padding:5px 10px; font-family:"IBM Plex Mono",monospace; font-size:11px; cursor:pointer;}
+  .setrow{display:flex; align-items:center; justify-content:space-between; gap:10px; padding:12px 14px; background:var(--card); border:1px solid var(--line); border-radius:14px; font-size:14px; color:var(--ink);}
+  .setrow .sun{font-size:18px; line-height:1; color:var(--ink);}
+  .toggle{position:relative; width:46px; height:26px; border-radius:999px; border:1px solid var(--line); background:var(--line); cursor:pointer; padding:0; transition:background .18s ease, border-color .18s ease; flex:none;}
+  .toggle .knob{position:absolute; top:2px; left:2px; width:20px; height:20px; border-radius:50%; background:var(--card); transition:transform .18s ease; box-shadow:0 1px 2px rgba(0,0,0,.3);}
+  .toggle[aria-checked="true"]{background:var(--accent); border-color:var(--accent);}
+  .toggle[aria-checked="true"] .knob{transform:translateX(20px);}
   .fhead{font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); margin-top:6px;}
   .addfriend{display:flex; gap:6px;}
   .addfriend input{flex:1; min-width:0; font-family:"IBM Plex Sans",sans-serif; font-size:13px; border:1px solid var(--line); border-radius:10px; padding:9px 11px; background:var(--card); outline:none;}
   .addfriend input:focus{border-color:var(--accent);}
-  .addfriend button{background:var(--green); color:#fff; border:none; border-radius:10px; padding:0 14px; font-family:"IBM Plex Sans",sans-serif; font-size:13px; font-weight:600; cursor:pointer;}
+  .addfriend button{background:var(--green); color:var(--bg); border:none; border-radius:10px; padding:0 14px; font-family:"IBM Plex Sans",sans-serif; font-size:13px; font-weight:600; cursor:pointer;}
   .fmsg{font-family:"IBM Plex Mono",monospace; font-size:11px; color:var(--accent); min-height:13px;}
   .fsub{font-family:"IBM Plex Mono",monospace; font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin:10px 0 2px;}
   .fcard{display:flex; align-items:center; gap:8px; padding:10px 0; border-bottom:1px solid var(--line);}
@@ -121,7 +137,7 @@
   .fcard .ft b{color:var(--accent); font-size:14px;}
   .fcard .pendtag{font-family:"IBM Plex Mono",monospace; font-size:10px; color:var(--muted);}
   .mini{background:none; border:1px solid var(--line); color:var(--muted); border-radius:8px; padding:5px 9px; font-family:"IBM Plex Mono",monospace; font-size:11px; cursor:pointer;}
-  .mini.ok{background:var(--green); color:#fff; border-color:var(--green);}
+  .mini.ok{background:var(--green); color:var(--bg); border-color:var(--green);}
   .acct button:active{background:var(--line);}
 </style>
 </head>
@@ -147,6 +163,10 @@
     <div class="acctBox">
       <div class="who" id="who"></div>
       <button id="signout">Sign out</button>
+    </div>
+    <div class="setrow">
+      <span class="sun" aria-hidden="true">☀</span>
+      <button class="toggle" id="themeToggle" role="switch" aria-checked="false" aria-label="Dark mode"><span class="knob"></span></button>
     </div>
     <div class="fhead">Friends</div>
     <div class="addfriend">
@@ -430,6 +450,17 @@ function closeMenu(){ drawer.classList.remove("open"); }
 document.getElementById("menuBtn").onclick=openMenu;
 document.getElementById("closeMenu").onclick=closeMenu;
 document.getElementById("drawerScrim").onclick=closeMenu;
+
+const themeToggle=document.getElementById("themeToggle");
+function currentTheme(){ return document.documentElement.getAttribute("data-theme")==="dark"?"dark":"light"; }
+function applyTheme(t){
+  if(t==="dark") document.documentElement.setAttribute("data-theme","dark");
+  else document.documentElement.removeAttribute("data-theme");
+  try{ localStorage.setItem("theme", t); }catch(e){}
+  themeToggle.setAttribute("aria-checked", t==="dark");
+}
+themeToggle.setAttribute("aria-checked", currentTheme()==="dark");
+themeToggle.onclick=()=>applyTheme(currentTheme()==="dark"?"light":"dark");
 
 async function loadFriends(){
   try{
