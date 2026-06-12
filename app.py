@@ -63,6 +63,12 @@ def get_db():
     return conn
 
 
+def _ensure_column(conn, table, col, decl):
+    cols = [r["name"] for r in conn.execute(f"PRAGMA table_info({table})").fetchall()]
+    if col not in cols:
+        conn.execute(f"ALTER TABLE {table} ADD COLUMN {col} {decl}")
+
+
 def init_db():
     conn = get_db()
     try:
@@ -80,6 +86,7 @@ def init_db():
                 user_id TEXT NOT NULL,
                 name    TEXT NOT NULL,
                 cal     REAL NOT NULL,
+                protein REAL NOT NULL DEFAULT 0,
                 unit    TEXT NOT NULL,
                 aliases TEXT NOT NULL
             );
@@ -92,12 +99,29 @@ def init_db():
                 qty        REAL NOT NULL,
                 unit       TEXT NOT NULL,
                 cal        INTEGER NOT NULL,
+                protein    REAL NOT NULL DEFAULT 0,
                 created_at TEXT
+            );
+            CREATE TABLE IF NOT EXISTS friendships (
+                id             INTEGER PRIMARY KEY AUTOINCREMENT,
+                requester_id   TEXT NOT NULL,
+                addressee_id   TEXT NOT NULL,
+                status         TEXT NOT NULL,
+                requester_nick TEXT,
+                addressee_nick TEXT,
+                created_at     TEXT,
+                UNIQUE(requester_id, addressee_id)
             );
             CREATE INDEX IF NOT EXISTS idx_reference_user ON reference(user_id);
             CREATE INDEX IF NOT EXISTS idx_log_user_date ON log(user_id, date);
+            CREATE INDEX IF NOT EXISTS idx_friend_req ON friendships(requester_id);
+            CREATE INDEX IF NOT EXISTS idx_friend_add ON friendships(addressee_id);
             """
         )
+        _ensure_column(conn, "reference", "protein", "REAL NOT NULL DEFAULT 0")
+        _ensure_column(conn, "log", "protein", "REAL NOT NULL DEFAULT 0")
+        _ensure_column(conn, "friendships", "requester_nick", "TEXT")
+        _ensure_column(conn, "friendships", "addressee_nick", "TEXT")
         conn.commit()
     finally:
         conn.close()
@@ -134,23 +158,24 @@ def user_reference(uid):
     conn = get_db()
     try:
         rows = conn.execute(
-            "SELECT id, name, cal, unit, aliases FROM reference WHERE user_id=? ORDER BY rowid",
+            "SELECT id, name, cal, protein, unit, aliases FROM reference WHERE user_id=? ORDER BY rowid",
             (uid,),
         ).fetchall()
     finally:
         conn.close()
     return [
-        {"id": r["id"], "name": r["name"], "cal": r["cal"], "unit": r["unit"], "aliases": json.loads(r["aliases"])}
+        {"id": r["id"], "name": r["name"], "cal": r["cal"], "protein": r["protein"],
+         "unit": r["unit"], "aliases": json.loads(r["aliases"])}
         for r in rows
     ]
 
 
-def add_user_reference(uid, name, cal, unit, aliases):
+def add_user_reference(uid, name, cal, protein, unit, aliases):
     conn = get_db()
     try:
         conn.execute(
-            "INSERT INTO reference (user_id, name, cal, unit, aliases) VALUES (?, ?, ?, ?, ?)",
-            (uid, name, float(cal), unit, json.dumps(aliases)),
+            "INSERT INTO reference (user_id, name, cal, protein, unit, aliases) VALUES (?, ?, ?, ?, ?, ?)",
+            (uid, name, float(cal), float(protein), unit, json.dumps(aliases)),
         )
         conn.commit()
     finally:
@@ -175,7 +200,7 @@ def user_day(uid, day):
     conn = get_db()
     try:
         rows = conn.execute(
-            "SELECT id, name, qty, unit, cal, meal FROM log WHERE user_id=? AND date=? ORDER BY rowid",
+            "SELECT id, name, qty, unit, cal, protein, meal FROM log WHERE user_id=? AND date=? ORDER BY rowid",
             (uid, day),
         ).fetchall()
     finally:
@@ -183,7 +208,8 @@ def user_day(uid, day):
     for r in rows:
         if r["meal"] in out:
             out[r["meal"]].append(
-                {"id": r["id"], "name": r["name"], "qty": r["qty"], "unit": r["unit"], "cal": r["cal"]}
+                {"id": r["id"], "name": r["name"], "qty": r["qty"], "unit": r["unit"],
+                 "cal": r["cal"], "protein": r["protein"]}
             )
     return out
 
@@ -193,9 +219,10 @@ def add_log_entries(uid, day, meal, entries):
     try:
         for p in entries:
             conn.execute(
-                "INSERT INTO log (id, user_id, date, meal, name, qty, unit, cal, created_at) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                (uuid.uuid4().hex[:8], uid, day, meal, p["name"], p["qty"], p["unit"], p["cal"], _now()),
+                "INSERT INTO log (id, user_id, date, meal, name, qty, unit, cal, protein, created_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (uuid.uuid4().hex[:8], uid, day, meal, p["name"], p["qty"], p["unit"],
+                 p["cal"], p.get("protein", 0), _now()),
             )
         conn.commit()
     finally:
@@ -212,6 +239,145 @@ def delete_log_entry(uid, day, meal, entry_id):
         conn.commit()
     finally:
         conn.close()
+
+
+def day_totals(uid, day):
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT COALESCE(SUM(cal), 0) AS cal, COALESCE(SUM(protein), 0) AS protein "
+            "FROM log WHERE user_id=? AND date=?",
+            (uid, day),
+        ).fetchone()
+    finally:
+        conn.close()
+    return {"cal": row["cal"], "protein": round(row["protein"], 1)}
+
+
+def find_user_by_email(email):
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT id, email, name FROM users WHERE lower(email)=lower(?)", (email,)
+        ).fetchone()
+    finally:
+        conn.close()
+    return {"id": row["id"], "email": row["email"], "name": row["name"]} if row else None
+
+
+def get_relationships(uid):
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            "SELECT f.id, f.requester_id, f.addressee_id, f.status, "
+            "f.requester_nick, f.addressee_nick, "
+            "ur.email AS req_email, ur.name AS req_name, "
+            "ua.email AS add_email, ua.name AS add_name "
+            "FROM friendships f "
+            "JOIN users ur ON ur.id=f.requester_id "
+            "JOIN users ua ON ua.id=f.addressee_id "
+            "WHERE f.requester_id=? OR f.addressee_id=?",
+            (uid, uid),
+        ).fetchall()
+    finally:
+        conn.close()
+    friends, incoming, outgoing = [], [], []
+    for r in rows:
+        i_am_requester = r["requester_id"] == uid
+        other = {
+            "id": r["addressee_id"] if i_am_requester else r["requester_id"],
+            "email": r["add_email"] if i_am_requester else r["req_email"],
+            "name": r["add_name"] if i_am_requester else r["req_name"],
+            "nick": r["requester_nick"] if i_am_requester else r["addressee_nick"],
+            "fid": r["id"],
+        }
+        if r["status"] == "accepted":
+            friends.append(other)
+        elif i_am_requester:
+            outgoing.append(other)
+        else:
+            incoming.append(other)
+    return {"friends": friends, "incoming": incoming, "outgoing": outgoing}
+
+
+def request_friend(uid, email):
+    target = find_user_by_email(email)
+    if not target:
+        return "not_found"
+    if target["id"] == uid:
+        return "self"
+    conn = get_db()
+    try:
+        ex = conn.execute(
+            "SELECT id, requester_id, status FROM friendships "
+            "WHERE (requester_id=? AND addressee_id=?) OR (requester_id=? AND addressee_id=?)",
+            (uid, target["id"], target["id"], uid),
+        ).fetchone()
+        if ex:
+            if ex["status"] == "accepted":
+                return "already_friends"
+            if ex["requester_id"] == target["id"]:
+                conn.execute("UPDATE friendships SET status='accepted' WHERE id=?", (ex["id"],))
+                conn.commit()
+                return "accepted"
+            return "already_pending"
+        conn.execute(
+            "INSERT INTO friendships (requester_id, addressee_id, status, created_at) VALUES (?, ?, 'pending', ?)",
+            (uid, target["id"], _now()),
+        )
+        conn.commit()
+        return "requested"
+    finally:
+        conn.close()
+
+
+def set_friend_nick(uid, fid, nick):
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT requester_id, addressee_id FROM friendships WHERE id=?", (fid,)
+        ).fetchone()
+        if not row or uid not in (row["requester_id"], row["addressee_id"]):
+            return False
+        col = "requester_nick" if row["requester_id"] == uid else "addressee_nick"
+        conn.execute(f"UPDATE friendships SET {col}=? WHERE id=?", (nick or None, fid))
+        conn.commit()
+        return True
+    finally:
+        conn.close()
+
+
+def accept_friend(uid, fid):
+    conn = get_db()
+    try:
+        conn.execute(
+            "UPDATE friendships SET status='accepted' WHERE id=? AND addressee_id=? AND status='pending'",
+            (fid, uid),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def remove_friend(uid, fid):
+    conn = get_db()
+    try:
+        conn.execute(
+            "DELETE FROM friendships WHERE id=? AND (requester_id=? OR addressee_id=?)",
+            (fid, uid, uid),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def friend_totals(uid, day):
+    out = []
+    for f in get_relationships(uid)["friends"]:
+        t = day_totals(f["id"], day)
+        out.append({"id": f["id"], "name": f["name"], "email": f["email"],
+                    "cal": t["cal"], "protein": t["protein"]})
+    return out
 
 
 def parse_qty(segment):
@@ -257,6 +423,7 @@ def parse_input(raw, reference):
                 "unit": it["unit"],
                 "qty": qty,
                 "cal": round(qty * it["cal"]),
+                "protein": round(qty * it.get("protein", 0), 1),
             } for it in items]
             entry = dict(options[0])
             entry["ok"] = True
@@ -340,12 +507,13 @@ def add_reference():
     body = request.get_json(force=True)
     name = (body.get("name") or "").strip()
     cal = body.get("cal")
+    protein = body.get("protein") or 0
     unit = body.get("unit", "g")
     if not name or cal is None:
         return jsonify({"error": "name and cal are required"}), 400
     low = name.lower()
     aliases = list({low, low.split()[-1]})
-    add_user_reference(g.uid, name, cal, unit, aliases)
+    add_user_reference(g.uid, name, cal, protein, unit, aliases)
     return jsonify(user_reference(g.uid))
 
 
@@ -394,6 +562,59 @@ def add_to_day(day):
 def delete_entry(day, meal, entry_id):
     delete_log_entry(g.uid, day, meal, entry_id)
     return jsonify(user_day(g.uid, day))
+
+
+@app.get("/api/friends")
+@login_required
+def friends():
+    return jsonify(get_relationships(g.uid))
+
+
+@app.post("/api/friends/request")
+@login_required
+def friends_request():
+    email = (request.get_json(force=True).get("email") or "").strip()
+    if not email:
+        return jsonify({"error": "email required"}), 400
+    status = request_friend(g.uid, email)
+    errors = {
+        "not_found": ("no user with that email — they need to sign in first", 404),
+        "self": ("that's your own email", 400),
+        "already_friends": ("you're already connected", 409),
+        "already_pending": ("a request is already pending", 409),
+    }
+    if status in errors:
+        msg, code = errors[status]
+        return jsonify({"error": msg}), code
+    return jsonify({"status": status, **get_relationships(g.uid)})
+
+
+@app.post("/api/friends/<int:fid>/accept")
+@login_required
+def friends_accept(fid):
+    accept_friend(g.uid, fid)
+    return jsonify(get_relationships(g.uid))
+
+
+@app.post("/api/friends/<int:fid>/nick")
+@login_required
+def friends_nick(fid):
+    nick = (request.get_json(force=True).get("nick") or "").strip()
+    set_friend_nick(g.uid, fid, nick)
+    return jsonify(get_relationships(g.uid))
+
+
+@app.delete("/api/friends/<int:fid>")
+@login_required
+def friends_remove(fid):
+    remove_friend(g.uid, fid)
+    return jsonify(get_relationships(g.uid))
+
+
+@app.get("/api/friends/totals/<day>")
+@login_required
+def friends_totals(day):
+    return jsonify(friend_totals(g.uid, day))
 
 
 _asr = None

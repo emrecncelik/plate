@@ -27,6 +27,7 @@
   .total{background:var(--card); border:1px solid var(--line); border-radius:20px; padding:22px 22px 18px; box-shadow:var(--shadow); margin:14px 0 18px; text-align:center;}
   .total .num{font-family:"Fraunces",serif; font-weight:600; font-size:62px; line-height:1; letter-spacing:-.03em; font-variant-numeric:tabular-nums; color:var(--accent);}
   .total .lab{font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); margin-top:6px;}
+  .total .protein{font-family:"IBM Plex Mono",monospace; font-size:13px; font-weight:600; color:var(--green); margin-top:8px; font-variant-numeric:tabular-nums;}
   .total .meals{display:flex; gap:10px; justify-content:center; margin-top:14px; flex-wrap:wrap;}
   .total .meal{font-family:"IBM Plex Mono",monospace; font-size:11px; color:var(--muted);}
   .total .meal b{color:var(--ink); font-weight:600;}
@@ -92,8 +93,35 @@
   .loginCard .brand span{color:var(--accent);}
   .loginHint{font-family:"IBM Plex Sans",sans-serif; font-size:14px; color:var(--muted); margin:0 0 22px;}
   .loginCard #gbtn{display:flex; justify-content:center;}
-  .acct{display:none; align-items:center; gap:10px; justify-content:flex-end; font-family:"IBM Plex Mono",monospace; font-size:11px; color:var(--muted); margin-bottom:6px;}
-  .acct button{background:none; border:1px solid var(--line); color:var(--muted); border-radius:8px; padding:4px 10px; font-family:inherit; font-size:11px; cursor:pointer;}
+  .hgroup{display:flex; align-items:center; gap:8px;}
+  .iconbtn{background:none; border:none; cursor:pointer; color:var(--ink); padding:2px; display:grid; place-items:center; line-height:1;}
+  .iconbtn svg{width:24px; height:24px;}
+  .drawer{position:fixed; inset:0; z-index:60; visibility:hidden;}
+  .drawer.open{visibility:visible;}
+  .drawerScrim{position:absolute; inset:0; background:rgba(27,26,23,.35); opacity:0; transition:opacity .2s ease;}
+  .drawer.open .drawerScrim{opacity:1;}
+  .drawerPanel{position:absolute; top:0; left:0; height:100%; width:min(330px,87vw); background:var(--bg); box-shadow:var(--shadow); padding:18px 18px 30px; transform:translateX(-100%); transition:transform .22s ease; display:flex; flex-direction:column; gap:14px; overflow-y:auto;}
+  .drawer.open .drawerPanel{transform:translateX(0);}
+  .drawerHead{display:flex; align-items:center; justify-content:space-between;}
+  .drawerHead .drawerTitle{font-family:"Fraunces",serif; font-weight:600; font-size:20px;}
+  .acctBox{display:flex; align-items:center; justify-content:space-between; gap:10px; padding:12px 14px; background:var(--card); border:1px solid var(--line); border-radius:14px;}
+  .acctBox .who{font-family:"IBM Plex Mono",monospace; font-size:11px; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .acctBox button{background:none; border:1px solid var(--line); color:var(--muted); border-radius:8px; padding:5px 10px; font-family:"IBM Plex Mono",monospace; font-size:11px; cursor:pointer;}
+  .fhead{font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); margin-top:6px;}
+  .addfriend{display:flex; gap:6px;}
+  .addfriend input{flex:1; min-width:0; font-family:"IBM Plex Sans",sans-serif; font-size:13px; border:1px solid var(--line); border-radius:10px; padding:9px 11px; background:var(--card); outline:none;}
+  .addfriend input:focus{border-color:var(--accent);}
+  .addfriend button{background:var(--green); color:#fff; border:none; border-radius:10px; padding:0 14px; font-family:"IBM Plex Sans",sans-serif; font-size:13px; font-weight:600; cursor:pointer;}
+  .fmsg{font-family:"IBM Plex Mono",monospace; font-size:11px; color:var(--accent); min-height:13px;}
+  .fsub{font-family:"IBM Plex Mono",monospace; font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin:10px 0 2px;}
+  .fcard{display:flex; align-items:center; gap:8px; padding:10px 0; border-bottom:1px solid var(--line);}
+  .fcard .fn{flex:1; font-size:14px; min-width:0;}
+  .fcard .fn small{display:block; font-family:"IBM Plex Mono",monospace; font-size:10.5px; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .fcard .ft{font-family:"IBM Plex Mono",monospace; font-size:11px; text-align:right; color:var(--muted); line-height:1.4;}
+  .fcard .ft b{color:var(--accent); font-size:14px;}
+  .fcard .pendtag{font-family:"IBM Plex Mono",monospace; font-size:10px; color:var(--muted);}
+  .mini{background:none; border:1px solid var(--line); color:var(--muted); border-radius:8px; padding:5px 9px; font-family:"IBM Plex Mono",monospace; font-size:11px; cursor:pointer;}
+  .mini.ok{background:var(--green); color:#fff; border-color:var(--green);}
   .acct button:active{background:var(--line);}
 </style>
 </head>
@@ -105,11 +133,41 @@
     <div id="gbtn"></div>
   </div>
 </div>
+<div class="drawer" id="drawer">
+  <div class="drawerScrim" id="drawerScrim"></div>
+  <aside class="drawerPanel">
+    <div class="drawerHead">
+      <div class="drawerTitle">Menu</div>
+      <button class="iconbtn" id="closeMenu" aria-label="Close">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/>
+        </svg>
+      </button>
+    </div>
+    <div class="acctBox">
+      <div class="who" id="who"></div>
+      <button id="signout">Sign out</button>
+    </div>
+    <div class="fhead">Friends</div>
+    <div class="addfriend">
+      <input id="friendEmail" placeholder="friend's email" autocomplete="off" inputmode="email">
+      <button id="friendAdd">Add</button>
+    </div>
+    <div class="fmsg" id="friendMsg"></div>
+    <div id="friendSections"></div>
+  </aside>
+</div>
 <div class="wrap">
   <div class="offline" id="offline">backend not reachable — start app.py</div>
-  <div class="acct" id="acct"></div>
   <header>
-    <div class="brand">Plate<span>.</span></div>
+    <div class="hgroup">
+      <button class="iconbtn" id="menuBtn" aria-label="Menu">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+        </svg>
+      </button>
+      <div class="brand">Plate<span>.</span></div>
+    </div>
     <div class="datepick">
       <button id="prev">‹</button><span class="d" id="dlabel">Today</span><button id="next">›</button>
     </div>
@@ -118,6 +176,7 @@
   <div class="total">
     <div class="num" id="totalNum">0</div>
     <div class="lab">kcal logged today</div>
+    <div class="protein" id="proteinNum">0 g protein</div>
     <div class="meals" id="mealBreak"></div>
   </div>
 
@@ -152,6 +211,7 @@
     <div class="addref">
       <input class="nm" id="rName" placeholder="item name">
       <input class="cl" id="rCal" placeholder="cal" inputmode="decimal">
+      <input class="cl" id="rProtein" placeholder="protein" inputmode="decimal">
       <select id="rUnit"><option value="g">per gram</option><option value="piece">per piece</option></select>
       <button id="rAdd">Save</button>
     </div>
@@ -192,7 +252,7 @@ async function loadRef(){
     box.innerHTML = ref.length ? ref.map(it=>`
       <div class="refrow">
         <span class="rn">${it.name}</span>
-        <span class="rv">${it.cal} /${it.unit}</span>
+        <span class="rv">${it.cal} cal · ${it.protein} P /${it.unit}</span>
         <button class="rdel" data-id="${it.id}">×</button>
       </div>`).join("") : `<div class="empty">no foods yet — add one below</div>`;
     box.querySelectorAll(".rdel").forEach(b=>b.onclick=async()=>{
@@ -203,11 +263,12 @@ async function loadRef(){
 document.getElementById("rAdd").onclick=async()=>{
   const name=document.getElementById("rName").value.trim();
   const cal=parseFloat(document.getElementById("rCal").value);
+  const protein=parseFloat(document.getElementById("rProtein").value)||0;
   const unit=document.getElementById("rUnit").value;
   if(!name||isNaN(cal))return;
   try{
-    await api("/api/reference",{method:"POST",body:JSON.stringify({name,cal,unit})});
-    document.getElementById("rName").value=""; document.getElementById("rCal").value="";
+    await api("/api/reference",{method:"POST",body:JSON.stringify({name,cal,protein,unit})});
+    document.getElementById("rName").value=""; document.getElementById("rCal").value=""; document.getElementById("rProtein").value="";
     loadRef();
   }catch(e){ offline(); }
 };
@@ -218,11 +279,14 @@ async function loadDay(){
     DAYDATA = await api("/api/log/"+keyOf(DAY));
   }catch(e){ offline(); DAYDATA={Breakfast:[],Lunch:[],Dinner:[],Snacks:[]}; }
   render();
+  if(document.getElementById("drawer").classList.contains("open")) loadFriends();
 }
 function mealTotal(m){ return (DAYDATA[m]||[]).reduce((s,e)=>s+e.cal,0); }
 function dayTotal(){ return ["Breakfast","Lunch","Dinner","Snacks"].reduce((s,m)=>s+mealTotal(m),0); }
+function proteinTotal(){ return ["Breakfast","Lunch","Dinner","Snacks"].reduce((s,m)=>s+(DAYDATA[m]||[]).reduce((t,e)=>t+(e.protein||0),0),0); }
 function render(){
   document.getElementById("totalNum").textContent=dayTotal();
+  document.getElementById("proteinNum").textContent=Math.round(proteinTotal()*10)/10+" g protein";
   document.getElementById("mealBreak").innerHTML=
     ["Breakfast","Lunch","Dinner","Snacks"].map(m=>`<div class="meal">${m[0]} <b>${mealTotal(m)}</b></div>`).join("");
   const items=DAYDATA[MEAL]||[];
@@ -230,7 +294,7 @@ function render(){
   if(!items.length){ ul.innerHTML=`<div class="empty">no ${MEAL.toLowerCase()} logged yet</div>`; return; }
   ul.innerHTML=items.map(e=>`
     <li class="row">
-      <div class="nm">${e.name}<small>${e.qty} ${e.unit==="g"?"g":(e.qty===1?"piece":"pieces")}</small></div>
+      <div class="nm">${e.name}<small>${e.qty} ${e.unit==="g"?"g":(e.qty===1?"piece":"pieces")} · ${e.protein||0} g protein</small></div>
       <div class="cal">${e.cal}<span>kcal</span></div>
       <button class="del" data-id="${e.id}" aria-label="remove">×</button>
     </li>`).join("");
@@ -249,7 +313,7 @@ function showPreview(raw){
     try{
       const {parsed}=await api("/api/parse",{method:"POST",body:JSON.stringify({text:raw})});
       pv.innerHTML=parsed.map(p=>p.ok
-        ?`<span class="chip">${p.name} · ${p.qty}${p.unit==="g"?"g":"×"} · ${p.cal}${p.alts?` +${p.alts.length-1}`:""}</span>`
+        ?`<span class="chip">${p.name} · ${p.qty}${p.unit==="g"?"g":"×"} · ${p.cal} cal · ${p.protein||0} P${p.alts?` +${p.alts.length-1}`:""}</span>`
         :`<span class="chip miss">? ${p.name}</span>`).join("");
     }catch(e){ offline(); }
   },220);
@@ -266,7 +330,7 @@ async function commit(raw){
 }
 
 let PENDING=[];
-const optLabel=o=>`${o.name} · ${o.qty}${o.unit==="g"?"g":"×"} · ${o.cal}`;
+const optLabel=o=>`${o.name} · ${o.qty}${o.unit==="g"?"g":"×"} · ${o.cal} cal · ${o.protein||0} P`;
 function renderPending(){
   const el=document.getElementById("pending");
   if(!PENDING.length){ el.innerHTML=""; return; }
@@ -294,7 +358,7 @@ async function stageFromVoice(raw){
   try{
     const {parsed}=await api("/api/parse",{method:"POST",body:JSON.stringify({text:raw})});
     const groups=parsed.filter(p=>p.ok).map(p=>({
-      options: p.alts || [{name:p.name,qty:p.qty,unit:p.unit,cal:p.cal}],
+      options: p.alts || [{name:p.name,qty:p.qty,unit:p.unit,cal:p.cal,protein:p.protein}],
     }));
     PENDING.push(...groups); renderPending();
     return groups.length;
@@ -360,6 +424,81 @@ async function startRec(){
 function stopRec(){ if(mediaRec && recording){ recording=false; mic.classList.remove("listening"); mediaRec.stop(); } }
 mic.onclick = ()=>{ recording ? stopRec() : startRec(); };
 
+const drawer=document.getElementById("drawer");
+function openMenu(){ drawer.classList.add("open"); loadFriends(); }
+function closeMenu(){ drawer.classList.remove("open"); }
+document.getElementById("menuBtn").onclick=openMenu;
+document.getElementById("closeMenu").onclick=closeMenu;
+document.getElementById("drawerScrim").onclick=closeMenu;
+
+async function loadFriends(){
+  try{
+    const rel=await api("/api/friends");
+    let totals=[];
+    try{ totals=await api("/api/friends/totals/"+keyOf(DAY)); }catch(e){}
+    renderFriends(rel, totals);
+  }catch(e){ offline(); }
+}
+function frow(f, right){
+  const sub=`${f.nick?(f.name?f.name+" · ":""):""}${f.email}`;
+  return `<div class="fcard"><div class="fn">${f.nick||f.name||f.email}<small>${sub}</small></div>${right}</div>`;
+}
+async function editNick(fid, current){
+  const nick=prompt("Nickname for this friend (leave blank to clear):", current);
+  if(nick===null) return;
+  try{ await api(`/api/friends/${fid}/nick`,{method:"POST",body:JSON.stringify({nick:nick.trim()})}); loadFriends(); }
+  catch(e){ offline(); }
+}
+function renderFriends(rel, totals){
+  const tmap={}; (totals||[]).forEach(t=>tmap[t.id]=t);
+  const box=document.getElementById("friendSections");
+  let html="";
+  if(rel.incoming.length){
+    html+=`<div class="fsub">requests</div>`;
+    html+=rel.incoming.map(f=>frow(f,
+      `<button class="mini ok" data-acc="${f.fid}">Accept</button><button class="mini" data-rm="${f.fid}">Decline</button>`)).join("");
+  }
+  html+=`<div class="fsub">friends · ${dLabel(DAY).toLowerCase()}</div>`;
+  if(rel.friends.length){
+    html+=rel.friends.map(f=>{ const t=tmap[f.id]||{cal:0,protein:0};
+      return frow(f, `<div class="ft"><b>${t.cal}</b> kcal<br>${t.protein} g P</div><button class="mini" data-nick="${f.fid}">✎</button><button class="mini" data-rm="${f.fid}">×</button>`);
+    }).join("");
+  }else{
+    html+=`<div class="empty">no friends yet — add by email above</div>`;
+  }
+  if(rel.outgoing.length){
+    html+=`<div class="fsub">sent</div>`;
+    html+=rel.outgoing.map(f=>frow(f, `<span class="pendtag">pending</span><button class="mini" data-rm="${f.fid}">×</button>`)).join("");
+  }
+  box.innerHTML=html;
+  box.querySelectorAll("[data-acc]").forEach(b=>b.onclick=async()=>{
+    try{ await api(`/api/friends/${b.dataset.acc}/accept`,{method:"POST"}); loadFriends(); }catch(e){ offline(); }
+  });
+  box.querySelectorAll("[data-nick]").forEach(b=>b.onclick=()=>{
+    const f=rel.friends.find(x=>String(x.fid)===b.dataset.nick);
+    editNick(b.dataset.nick, (f&&f.nick)||"");
+  });
+  box.querySelectorAll("[data-rm]").forEach(b=>b.onclick=async()=>{
+    try{ await api(`/api/friends/${b.dataset.rm}`,{method:"DELETE"}); loadFriends(); }catch(e){ offline(); }
+  });
+}
+async function addFriend(){
+  const inp=document.getElementById("friendEmail"), msg=document.getElementById("friendMsg");
+  const email=inp.value.trim(); if(!email) return;
+  msg.textContent="";
+  try{
+    const r=await fetch(API+"/api/friends/request",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email})});
+    const data=await r.json();
+    if(!r.ok){ msg.textContent=data.error||"could not send request"; return; }
+    inp.value="";
+    msg.textContent = data.status==="accepted" ? "connected!" : "request sent";
+    let totals=[]; try{ totals=await api("/api/friends/totals/"+keyOf(DAY)); }catch(e){}
+    renderFriends(data, totals);
+  }catch(e){ msg.textContent="could not send request"; }
+}
+document.getElementById("friendAdd").onclick=addFriend;
+document.getElementById("friendEmail").addEventListener("keydown",e=>{ if(e.key==="Enter") addFriend(); });
+
 let GOOGLE_CLIENT_ID=null, signedIn=false;
 
 function showLogin(){
@@ -383,9 +522,7 @@ async function onCredential(resp){
 function onSignedIn(user){
   signedIn=true;
   document.getElementById("login").style.display="none";
-  const acct=document.getElementById("acct");
-  acct.style.display="flex";
-  acct.innerHTML=`<span>${user.email||user.name||"signed in"}</span><button id="signout">Sign out</button>`;
+  document.getElementById("who").textContent=user.email||user.name||"signed in";
   document.getElementById("signout").onclick=signOut;
   loadRef(); loadDay(); initAsr();
 }

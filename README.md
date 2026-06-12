@@ -64,9 +64,9 @@ data/plate.db       per-user reference and log, created on first run
 SQLite tables, all scoped by `user_id`:
 
 - `users(id, email, name, created_at)` where `id` is the Google subject id
-- `reference(id, user_id, name, cal, unit, aliases)` where `unit` is `g` (cal per
-  gram) or `piece` (cal per item) and `aliases` is a JSON array
-- `log(id, user_id, date, meal, name, qty, unit, cal, created_at)`
+- `reference(id, user_id, name, cal, protein, unit, aliases)` where `unit` is `g`
+  (cal/protein per gram) or `piece` (per item) and `aliases` is a JSON array
+- `log(id, user_id, date, meal, name, qty, unit, cal, protein, created_at)`
 
 ## API
 
@@ -80,7 +80,7 @@ a signed-in session.
 | GET    | `/api/auth/me`                | current `{user}` or null |
 | POST   | `/api/auth/logout`            | clears the session |
 | GET    | `/api/reference`              | list the user's food items |
-| POST   | `/api/reference`              | `{name, cal, unit}` add item |
+| POST   | `/api/reference`              | `{name, cal, protein, unit}` add item (`protein` optional) |
 | DELETE | `/api/reference/<id>`         | remove item |
 | POST   | `/api/parse`                  | `{text}` returns parsed preview, nothing saved |
 | GET    | `/api/log/<date>`             | day's entries (`date` = `YYYY-MM-DD`) |
