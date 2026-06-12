@@ -10,5 +10,9 @@ RUN python -c "from faster_whisper import WhisperModel; WhisperModel('${ASR_MODE
 
 COPY . .
 
+# Gate the build on the test suite: a red suite fails the build, so Railway
+# never deploys broken code.
+RUN python -m unittest discover -s tests
+
 ENV PORT=8080
 CMD exec gunicorn --workers 1 --threads 4 --timeout 120 --bind 0.0.0.0:$PORT app:app
