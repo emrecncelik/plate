@@ -246,7 +246,7 @@ let DAY = new Date();
 let MEAL = "Breakfast";
 let DAYDATA = {Breakfast:[],Lunch:[],Dinner:[],Snacks:[]};
 
-const keyOf = d => d.toISOString().slice(0,10);
+const keyOf = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
 const sameDay = (a,b) => keyOf(a)===keyOf(b);
 function dLabel(d){
   const t=new Date();
