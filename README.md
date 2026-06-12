@@ -89,6 +89,19 @@ a signed-in session.
 | GET    | `/api/asr-status`             | whether the speech model is available |
 | POST   | `/api/transcribe`             | multipart `audio` file, returns `{text}` |
 
+## Tests
+
+Run the suite before every deployment or feature change:
+
+```bash
+./run_tests.sh            # or: python -m unittest discover -s tests
+```
+
+It uses an isolated temporary database (never your `data/`) and no network, and
+covers parsing, the auth gate, per-user data isolation, logging, friends and
+nicknames, daily totals, and the SQLite migration. Add a test alongside any new
+behaviour.
+
 ## Deploy
 
 The `Dockerfile` bakes in the model and serves the app with gunicorn.

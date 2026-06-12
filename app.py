@@ -5,7 +5,7 @@ import sqlite3
 import tempfile
 import threading
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from functools import wraps
 from pathlib import Path
 
@@ -52,7 +52,7 @@ UNIT_WORDS = {"g", "gram", "grams", "kg", "ml", "l", "piece", "pieces", "of"}
 
 
 def _now():
-    return datetime.utcnow().isoformat() + "Z"
+    return datetime.now(timezone.utc).isoformat()
 
 
 def get_db():
