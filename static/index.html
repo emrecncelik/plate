@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Plate — voice calorie log</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,560;9..144,600&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://accounts.google.com/gsi/client" async></script>
+<style>
+  :root{
+    --bg:#FBF9F4; --ink:#1B1A17; --muted:#8A857B; --line:#E7E2D6;
+    --accent:#E1521D; --accent-soft:#FBE7DC; --green:#5C7A52; --card:#FFFFFF;
+    --shadow:0 1px 2px rgba(27,26,23,.04), 0 8px 24px rgba(27,26,23,.05);
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0; background:var(--bg); color:var(--ink); font-family:"IBM Plex Sans",system-ui,sans-serif;}
+  .wrap{max-width:480px; margin:0 auto; min-height:100dvh; padding:20px 18px 40px; display:flex; flex-direction:column;}
+  header{display:flex; align-items:baseline; justify-content:space-between; margin-bottom:6px;}
+  .brand{font-family:"Fraunces",serif; font-weight:600; font-size:22px; letter-spacing:-.01em;}
+  .brand span{color:var(--accent);}
+  .datepick{font-family:"IBM Plex Mono",monospace; font-size:12px; color:var(--muted); display:flex; gap:8px; align-items:center;}
+  .datepick button{background:none; border:1px solid var(--line); color:var(--muted); width:26px; height:26px; border-radius:8px; font-size:14px; cursor:pointer; line-height:1;}
+  .datepick button:active{background:var(--line);}
+  .datepick .d{min-width:90px; text-align:center;}
+  .total{background:var(--card); border:1px solid var(--line); border-radius:20px; padding:22px 22px 18px; box-shadow:var(--shadow); margin:14px 0 18px; text-align:center;}
+  .total .num{font-family:"Fraunces",serif; font-weight:600; font-size:62px; line-height:1; letter-spacing:-.03em; font-variant-numeric:tabular-nums; color:var(--accent);}
+  .total .lab{font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); margin-top:6px;}
+  .total .meals{display:flex; gap:10px; justify-content:center; margin-top:14px; flex-wrap:wrap;}
+  .total .meal{font-family:"IBM Plex Mono",monospace; font-size:11px; color:var(--muted);}
+  .total .meal b{color:var(--ink); font-weight:600;}
+  .console{display:flex; flex-direction:column; align-items:center; gap:14px; margin-bottom:14px;}
+  .mic{position:relative; width:84px; height:84px; border-radius:50%; border:none; cursor:pointer; background:var(--accent); color:#fff; display:grid; place-items:center; box-shadow:0 10px 30px rgba(225,82,29,.35); transition:transform .12s ease;}
+  .mic:active{transform:scale(.95);}
+  .mic svg{width:34px; height:34px;}
+  .mic.listening{animation:bob 1.4s ease-in-out infinite;}
+  .mic .ring{position:absolute; inset:0; border-radius:50%; border:2px solid var(--accent); opacity:0;}
+  .mic.listening .ring{animation:ring 1.6s ease-out infinite;}
+  .mic.listening .ring:nth-child(2){animation-delay:.5s;}
+  @keyframes ring{0%{opacity:.5; transform:scale(1);}100%{opacity:0; transform:scale(1.9);}}
+  @keyframes bob{0%,100%{transform:translateY(0);}50%{transform:translateY(-3px);}}
+  .hint{font-family:"IBM Plex Mono",monospace; font-size:11px; color:var(--muted); height:14px; text-align:center;}
+  .field{width:100%; display:flex; gap:8px;}
+  .field input{flex:1; font-family:"IBM Plex Sans",sans-serif; font-size:15px; color:var(--ink); background:var(--card); border:1px solid var(--line); border-radius:14px; padding:13px 15px; outline:none;}
+  .field input:focus{border-color:var(--accent);}
+  .field .go{background:var(--ink); color:#fff; border:none; border-radius:14px; padding:0 18px; font-family:"IBM Plex Sans",sans-serif; font-size:15px; font-weight:600; cursor:pointer;}
+  .field .go:active{opacity:.85;}
+  .preview{display:flex; flex-wrap:wrap; gap:7px; margin-top:2px;}
+  .chip{font-family:"IBM Plex Mono",monospace; font-size:12px; padding:6px 10px; border-radius:999px; background:var(--accent-soft); color:var(--accent); border:1px solid #f3cdb9;}
+  .chip.miss{background:#f4f1ea; color:var(--muted); border-color:var(--line);}
+  .pending{margin-top:10px;}
+  .pending .pendlab{font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin-bottom:7px;}
+  .pending .chips{display:flex; flex-wrap:wrap; gap:7px;}
+  .chip.add{cursor:pointer; background:var(--card); color:var(--accent); border:1px solid var(--accent); transition:background .12s ease, transform .1s ease;}
+  .chip.add:active{transform:scale(.96); background:var(--accent-soft);}
+  .chip.add::before{content:"+ "; font-weight:600;}
+  .pendgroup{display:inline-flex; align-items:center; gap:6px; padding:5px 8px; border:1px dashed var(--accent); border-radius:16px; background:var(--accent-soft);}
+  .pendgroup .glab{font-family:"IBM Plex Mono",monospace; font-size:9.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--accent); opacity:.85;}
+  .pendgroup .chip.add{background:var(--card);}
+  .tabs{display:flex; gap:6px; margin:18px 0 10px;}
+  .tabs button{flex:1; font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.08em; text-transform:uppercase; padding:9px 0; border-radius:10px; border:1px solid var(--line); background:var(--card); color:var(--muted); cursor:pointer;}
+  .tabs button.on{background:var(--ink); color:#fff; border-color:var(--ink);}
+  .log{list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:8px;}
+  .row{display:flex; align-items:center; gap:12px; background:var(--card); border:1px solid var(--line); border-radius:14px; padding:12px 14px; box-shadow:var(--shadow);}
+  .row .nm{flex:1; font-size:15px; font-weight:500;}
+  .row .nm small{display:block; font-family:"IBM Plex Mono",monospace; font-size:11px; color:var(--muted); font-weight:400; margin-top:2px;}
+  .row .cal{font-family:"IBM Plex Mono",monospace; font-weight:600; font-size:15px; font-variant-numeric:tabular-nums;}
+  .row .cal span{font-size:11px; color:var(--muted); margin-left:2px;}
+  .row .del{background:none; border:none; color:var(--muted); font-size:20px; cursor:pointer; padding:0 2px; line-height:1;}
+  .row .del:active{color:var(--accent);}
+  .empty{font-family:"IBM Plex Mono",monospace; font-size:12px; color:var(--muted); text-align:center; padding:22px 0;}
+  details.ref{margin-top:24px; border-top:1px solid var(--line); padding-top:16px;}
+  details.ref summary{font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); cursor:pointer; list-style:none;}
+  details.ref summary::-webkit-details-marker{display:none;}
+  details.ref summary::after{content:" +";}
+  details.ref[open] summary::after{content:" –";}
+  .reflist{margin-top:12px; display:flex; flex-direction:column; gap:6px;}
+  .refrow{display:flex; align-items:center; gap:8px; font-family:"IBM Plex Mono",monospace; font-size:12px;}
+  .refrow .rn{flex:1;}
+  .refrow .rv{color:var(--muted);}
+  .refrow .rdel{background:none;border:none;color:var(--muted);cursor:pointer;font-size:15px;}
+  .addref{display:flex; gap:6px; margin-top:12px; flex-wrap:wrap;}
+  .addref input,.addref select{font-family:"IBM Plex Mono",monospace; font-size:12px; padding:8px 9px; border:1px solid var(--line); border-radius:9px; background:var(--card); outline:none; min-width:0;}
+  .addref input.nm{flex:2 1 110px;} .addref input.cl{flex:1 1 60px;} .addref select{flex:1 1 70px;}
+  .addref button{background:var(--green); color:#fff; border:none; border-radius:9px; padding:8px 14px; font-family:"IBM Plex Sans",sans-serif; font-size:13px; font-weight:600; cursor:pointer;}
+  .note{font-family:"IBM Plex Mono",monospace; font-size:10.5px; color:var(--muted); line-height:1.6; margin-top:14px;}
+  .offline{background:#fbe7dc; color:var(--accent); font-family:"IBM Plex Mono",monospace; font-size:11px; text-align:center; padding:8px; border-radius:10px; margin-bottom:10px; display:none;}
+  .login{position:fixed; inset:0; background:var(--bg); display:none; place-items:center; z-index:50; padding:24px;}
+  .loginCard{background:var(--card); border:1px solid var(--line); border-radius:20px; box-shadow:var(--shadow); padding:34px 30px; text-align:center; max-width:340px; width:100%;}
+  .loginCard .brand{font-family:"Fraunces",serif; font-weight:600; font-size:30px; margin-bottom:10px;}
+  .loginCard .brand span{color:var(--accent);}
+  .loginHint{font-family:"IBM Plex Sans",sans-serif; font-size:14px; color:var(--muted); margin:0 0 22px;}
+  .loginCard #gbtn{display:flex; justify-content:center;}
+  .acct{display:none; align-items:center; gap:10px; justify-content:flex-end; font-family:"IBM Plex Mono",monospace; font-size:11px; color:var(--muted); margin-bottom:6px;}
+  .acct button{background:none; border:1px solid var(--line); color:var(--muted); border-radius:8px; padding:4px 10px; font-family:inherit; font-size:11px; cursor:pointer;}
+  .acct button:active{background:var(--line);}
+</style>
+</head>
+<body>
+<div class="login" id="login">
+  <div class="loginCard">
+    <div class="brand">Plate<span>.</span></div>
+    <p class="loginHint">Sign in to track your calories.</p>
+    <div id="gbtn"></div>
+  </div>
+</div>
+<div class="wrap">
+  <div class="offline" id="offline">backend not reachable — start app.py</div>
+  <div class="acct" id="acct"></div>
+  <header>
+    <div class="brand">Plate<span>.</span></div>
+    <div class="datepick">
+      <button id="prev">‹</button><span class="d" id="dlabel">Today</span><button id="next">›</button>
+    </div>
+  </header>
+
+  <div class="total">
+    <div class="num" id="totalNum">0</div>
+    <div class="lab">kcal logged today</div>
+    <div class="meals" id="mealBreak"></div>
+  </div>
+
+  <div class="console">
+    <button class="mic" id="mic" aria-label="Tap to speak">
+      <span class="ring"></span><span class="ring"></span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="9" y="2" width="6" height="11" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><path d="M12 19v3"/>
+      </svg>
+    </button>
+    <div class="hint" id="hint">tap mic, or type below</div>
+    <div class="field">
+      <input id="text" placeholder="tomatoes 80 g, chicken thigh 90 g" autocomplete="off">
+      <button class="go" id="addBtn">Add</button>
+    </div>
+    <div class="preview" id="preview"></div>
+    <div class="pending" id="pending"></div>
+  </div>
+
+  <div class="tabs" id="tabs">
+    <button data-m="Breakfast" class="on">Breakfast</button>
+    <button data-m="Lunch">Lunch</button>
+    <button data-m="Dinner">Dinner</button>
+    <button data-m="Snacks">Snacks</button>
+  </div>
+
+  <ul class="log" id="log"></ul>
+
+  <details class="ref">
+    <summary>Reference table</summary>
+    <div class="reflist" id="reflist"></div>
+    <div class="addref">
+      <input class="nm" id="rName" placeholder="item name">
+      <input class="cl" id="rCal" placeholder="cal" inputmode="decimal">
+      <select id="rUnit"><option value="g">per gram</option><option value="piece">per piece</option></select>
+      <button id="rAdd">Save</button>
+    </div>
+    <div class="note">Tap the mic, speak, tap again to stop. Audio is transcribed by the backend, so voice works in any browser.</div>
+  </details>
+</div>
+
+<script>
+const API = "";
+
+let DAY = new Date();
+let MEAL = "Breakfast";
+let DAYDATA = {Breakfast:[],Lunch:[],Dinner:[],Snacks:[]};
+
+const keyOf = d => d.toISOString().slice(0,10);
+const sameDay = (a,b) => keyOf(a)===keyOf(b);
+function dLabel(d){
+  const t=new Date();
+  if(sameDay(d,t)) return "Today";
+  const y=new Date(t); y.setDate(y.getDate()-1);
+  if(sameDay(d,y)) return "Yesterday";
+  return d.toLocaleDateString(undefined,{month:"short",day:"numeric"});
+}
+
+async function api(path, opts){
+  const r = await fetch(API+path, Object.assign({headers:{"Content-Type":"application/json"}}, opts));
+  if(r.status===401){ showLogin(); throw new Error("auth_required"); }
+  if(!r.ok) throw new Error("HTTP "+r.status);
+  document.getElementById("offline").style.display="none";
+  return r.json();
+}
+function offline(){ document.getElementById("offline").style.display="block"; }
+
+async function loadRef(){
+  try{
+    const ref = await api("/api/reference");
+    const box = document.getElementById("reflist");
+    box.innerHTML = ref.length ? ref.map(it=>`
+      <div class="refrow">
+        <span class="rn">${it.name}</span>
+        <span class="rv">${it.cal} /${it.unit}</span>
+        <button class="rdel" data-id="${it.id}">×</button>
+      </div>`).join("") : `<div class="empty">no foods yet — add one below</div>`;
+    box.querySelectorAll(".rdel").forEach(b=>b.onclick=async()=>{
+      try{ await api("/api/reference/"+b.dataset.id,{method:"DELETE"}); loadRef(); }catch(e){ offline(); }
+    });
+  }catch(e){ offline(); }
+}
+document.getElementById("rAdd").onclick=async()=>{
+  const name=document.getElementById("rName").value.trim();
+  const cal=parseFloat(document.getElementById("rCal").value);
+  const unit=document.getElementById("rUnit").value;
+  if(!name||isNaN(cal))return;
+  try{
+    await api("/api/reference",{method:"POST",body:JSON.stringify({name,cal,unit})});
+    document.getElementById("rName").value=""; document.getElementById("rCal").value="";
+    loadRef();
+  }catch(e){ offline(); }
+};
+
+async function loadDay(){
+  document.getElementById("dlabel").textContent=dLabel(DAY);
+  try{
+    DAYDATA = await api("/api/log/"+keyOf(DAY));
+  }catch(e){ offline(); DAYDATA={Breakfast:[],Lunch:[],Dinner:[],Snacks:[]}; }
+  render();
+}
+function mealTotal(m){ return (DAYDATA[m]||[]).reduce((s,e)=>s+e.cal,0); }
+function dayTotal(){ return ["Breakfast","Lunch","Dinner","Snacks"].reduce((s,m)=>s+mealTotal(m),0); }
+function render(){
+  document.getElementById("totalNum").textContent=dayTotal();
+  document.getElementById("mealBreak").innerHTML=
+    ["Breakfast","Lunch","Dinner","Snacks"].map(m=>`<div class="meal">${m[0]} <b>${mealTotal(m)}</b></div>`).join("");
+  const items=DAYDATA[MEAL]||[];
+  const ul=document.getElementById("log");
+  if(!items.length){ ul.innerHTML=`<div class="empty">no ${MEAL.toLowerCase()} logged yet</div>`; return; }
+  ul.innerHTML=items.map(e=>`
+    <li class="row">
+      <div class="nm">${e.name}<small>${e.qty} ${e.unit==="g"?"g":(e.qty===1?"piece":"pieces")}</small></div>
+      <div class="cal">${e.cal}<span>kcal</span></div>
+      <button class="del" data-id="${e.id}" aria-label="remove">×</button>
+    </li>`).join("");
+  ul.querySelectorAll(".del").forEach(b=>b.onclick=async()=>{
+    try{ DAYDATA = await api(`/api/log/${keyOf(DAY)}/${MEAL}/${b.dataset.id}`,{method:"DELETE"}); render(); }
+    catch(e){ offline(); }
+  });
+}
+
+let pvTimer=null;
+function showPreview(raw){
+  clearTimeout(pvTimer);
+  const pv=document.getElementById("preview");
+  if(!raw.trim()){ pv.innerHTML=""; return; }
+  pvTimer=setTimeout(async()=>{
+    try{
+      const {parsed}=await api("/api/parse",{method:"POST",body:JSON.stringify({text:raw})});
+      pv.innerHTML=parsed.map(p=>p.ok
+        ?`<span class="chip">${p.name} · ${p.qty}${p.unit==="g"?"g":"×"} · ${p.cal}${p.alts?` +${p.alts.length-1}`:""}</span>`
+        :`<span class="chip miss">? ${p.name}</span>`).join("");
+    }catch(e){ offline(); }
+  },220);
+}
+async function commit(raw){
+  if(!raw.trim())return false;
+  try{
+    const res=await api("/api/log/"+keyOf(DAY),{method:"POST",body:JSON.stringify({meal:MEAL,text:raw})});
+    DAYDATA=res.day; render();
+    document.getElementById("text").value="";
+    document.getElementById("preview").innerHTML="";
+    return res.added.length>0;
+  }catch(e){ offline(); return false; }
+}
+
+let PENDING=[];
+const optLabel=o=>`${o.name} · ${o.qty}${o.unit==="g"?"g":"×"} · ${o.cal}`;
+function renderPending(){
+  const el=document.getElementById("pending");
+  if(!PENDING.length){ el.innerHTML=""; return; }
+  el.innerHTML=`<div class="pendlab">tap to add to ${MEAL}</div><div class="chips">`+
+    PENDING.map((g,gi)=>{
+      if(g.options.length===1)
+        return `<span class="chip add" data-g="${gi}" data-o="0">${optLabel(g.options[0])}</span>`;
+      return `<span class="pendgroup" data-g="${gi}"><span class="glab">one of</span>`+
+        g.options.map((o,oi)=>`<span class="chip add" data-g="${gi}" data-o="${oi}">${optLabel(o)}</span>`).join("")+
+        `</span>`;
+    }).join("")+`</div>`;
+  el.querySelectorAll(".chip.add").forEach(c=>c.onclick=()=>approve(+c.dataset.g,+c.dataset.o));
+}
+async function approve(gi,oi){
+  const g=PENDING[gi]; if(!g)return;
+  const item=g.options[oi]; if(!item)return;
+  try{
+    const res=await api("/api/log/"+keyOf(DAY),{method:"POST",body:JSON.stringify({meal:MEAL,items:[{...item,ok:true}]})});
+    DAYDATA=res.day; render();
+    PENDING.splice(gi,1); renderPending();
+  }catch(e){ offline(); }
+}
+async function stageFromVoice(raw){
+  if(!raw.trim())return 0;
+  try{
+    const {parsed}=await api("/api/parse",{method:"POST",body:JSON.stringify({text:raw})});
+    const groups=parsed.filter(p=>p.ok).map(p=>({
+      options: p.alts || [{name:p.name,qty:p.qty,unit:p.unit,cal:p.cal}],
+    }));
+    PENDING.push(...groups); renderPending();
+    return groups.length;
+  }catch(e){ offline(); return 0; }
+}
+
+const textEl=document.getElementById("text");
+textEl.addEventListener("input",e=>showPreview(e.target.value));
+textEl.addEventListener("keydown",e=>{ if(e.key==="Enter")commit(textEl.value); });
+document.getElementById("addBtn").onclick=()=>commit(textEl.value);
+document.getElementById("tabs").addEventListener("click",e=>{
+  const b=e.target.closest("button"); if(!b)return;
+  MEAL=b.dataset.m;
+  [...e.currentTarget.children].forEach(x=>x.classList.toggle("on",x===b));
+  render(); renderPending();
+});
+document.getElementById("prev").onclick=()=>{ DAY.setDate(DAY.getDate()-1); loadDay(); };
+document.getElementById("next").onclick=()=>{ DAY.setDate(DAY.getDate()+1); loadDay(); };
+
+const mic=document.getElementById("mic"), hint=document.getElementById("hint");
+let asrReady=false, mediaRec=null, chunks=[], recording=false;
+
+function initAsr(){
+  api("/api/asr-status").then(s=>{
+    asrReady = !!s.available;
+    if(!asrReady){ hint.textContent="speech model not installed — type instead"; mic.style.opacity=.45; }
+  }).catch(()=>{});
+}
+
+async function startRec(){
+  if(!asrReady) return;
+  try{
+    const stream = await navigator.mediaDevices.getUserMedia({audio:true});
+    mediaRec = new MediaRecorder(stream);
+    chunks = [];
+    mediaRec.ondataavailable = e=>{ if(e.data && e.data.size) chunks.push(e.data); };
+    mediaRec.onstop = async ()=>{
+      stream.getTracks().forEach(t=>t.stop());
+      const type = mediaRec.mimeType || "audio/webm";
+      const blob = new Blob(chunks, {type});
+      const ext = type.includes("ogg") ? "ogg" : (type.includes("wav") ? "wav" : "webm");
+      hint.textContent = "transcribing…";
+      const fd = new FormData();
+      fd.append("audio", blob, "clip." + ext);
+      try{
+        const r = await fetch(API + "/api/transcribe", {method:"POST", body:fd});
+        const data = await r.json();
+        if(data.text){
+          const n = await stageFromVoice(data.text);
+          hint.textContent = n ? "tap items to add ↑" : `heard "${data.text}" — no match`;
+        }else{
+          hint.textContent = data.error === "asr_unavailable"
+            ? "speech model not installed" : "couldn't transcribe, try again";
+        }
+      }catch(err){ hint.textContent = "transcription failed"; }
+      setTimeout(()=>{ if(!recording) hint.textContent = PENDING.length ? "tap items to add ↑" : "tap mic, or type below"; }, 1800);
+    };
+    mediaRec.start();
+    recording = true; mic.classList.add("listening");
+    hint.textContent = "recording… tap to stop";
+  }catch(err){ hint.textContent = "mic permission denied"; }
+}
+function stopRec(){ if(mediaRec && recording){ recording=false; mic.classList.remove("listening"); mediaRec.stop(); } }
+mic.onclick = ()=>{ recording ? stopRec() : startRec(); };
+
+let GOOGLE_CLIENT_ID=null, signedIn=false;
+
+function showLogin(){
+  if(signedIn) return;
+  document.getElementById("login").style.display="grid";
+  renderGoogle();
+}
+function renderGoogle(){
+  const gbtn=document.getElementById("gbtn");
+  if(!GOOGLE_CLIENT_ID){ gbtn.textContent="GOOGLE_CLIENT_ID not configured"; return; }
+  if(!(window.google && google.accounts && google.accounts.id)){ return setTimeout(renderGoogle,100); }
+  google.accounts.id.initialize({client_id:GOOGLE_CLIENT_ID, callback:onCredential});
+  google.accounts.id.renderButton(gbtn,{theme:"outline", size:"large", shape:"pill", text:"continue_with"});
+}
+async function onCredential(resp){
+  try{
+    const {user}=await api("/api/auth/google",{method:"POST",body:JSON.stringify({credential:resp.credential})});
+    onSignedIn(user);
+  }catch(e){ document.getElementById("gbtn").textContent="sign-in failed, try again"; }
+}
+function onSignedIn(user){
+  signedIn=true;
+  document.getElementById("login").style.display="none";
+  const acct=document.getElementById("acct");
+  acct.style.display="flex";
+  acct.innerHTML=`<span>${user.email||user.name||"signed in"}</span><button id="signout">Sign out</button>`;
+  document.getElementById("signout").onclick=signOut;
+  loadRef(); loadDay(); initAsr();
+}
+async function signOut(){
+  try{ await api("/api/auth/logout",{method:"POST"}); }catch(e){}
+  location.reload();
+}
+async function boot(){
+  try{ GOOGLE_CLIENT_ID=(await api("/api/config")).google_client_id; }catch(e){ offline(); }
+  let me={user:null};
+  try{ me=await api("/api/auth/me"); }catch(e){}
+  if(me.user) onSignedIn(me.user); else showLogin();
+}
+boot();
+</script>
+</body>
+</html>
