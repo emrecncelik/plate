@@ -89,7 +89,9 @@
   .refrow{display:flex; align-items:center; gap:8px; font-family:"IBM Plex Mono",monospace; font-size:12px;}
   .refrow .rn{flex:1;}
   .refrow .rv{color:var(--muted);}
+  .refrow .redit{background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px;}
   .refrow .rdel{background:none;border:none;color:var(--muted);cursor:pointer;font-size:15px;}
+  .addref #rCancel{background:none; border:1px solid var(--line); color:var(--muted);}
   .addref{display:flex; gap:6px; margin-top:12px; flex-wrap:wrap;}
   .addref input,.addref select{font-family:"IBM Plex Mono",monospace; font-size:12px; padding:8px 9px; border:1px solid var(--line); border-radius:9px; background:var(--card); color:var(--ink); outline:none; min-width:0;}
   .addref select option{background:var(--card); color:var(--ink);}
@@ -234,6 +236,7 @@
       <input class="cl" id="rProtein" placeholder="protein" inputmode="decimal">
       <select id="rUnit"><option value="g">per gram</option><option value="piece">per piece</option></select>
       <button id="rAdd">Save</button>
+      <button id="rCancel" style="display:none">Cancel</button>
     </div>
     <div class="note">Tap the mic, speak, tap again to stop. Audio is transcribed by the backend, so voice works in any browser.</div>
   </details>
@@ -265,21 +268,44 @@ async function api(path, opts){
 }
 function offline(){ document.getElementById("offline").style.display="block"; }
 
+let REFCACHE=[], editRefId=null;
 async function loadRef(){
   try{
     const ref = await api("/api/reference");
+    REFCACHE = ref;
     const box = document.getElementById("reflist");
     box.innerHTML = ref.length ? ref.map(it=>`
       <div class="refrow">
         <span class="rn">${it.name}</span>
         <span class="rv">${it.cal} cal · ${it.protein} P /${it.unit}</span>
+        <button class="redit" data-id="${it.id}">✎</button>
         <button class="rdel" data-id="${it.id}">×</button>
       </div>`).join("") : `<div class="empty">no foods yet — add one below</div>`;
+    box.querySelectorAll(".redit").forEach(b=>b.onclick=()=>startEditRef(+b.dataset.id));
     box.querySelectorAll(".rdel").forEach(b=>b.onclick=async()=>{
+      if(editRefId===+b.dataset.id) cancelEditRef();
       try{ await api("/api/reference/"+b.dataset.id,{method:"DELETE"}); loadRef(); }catch(e){ offline(); }
     });
   }catch(e){ offline(); }
 }
+function startEditRef(id){
+  const it=REFCACHE.find(x=>x.id===id); if(!it) return;
+  document.getElementById("rName").value=it.name;
+  document.getElementById("rCal").value=it.cal;
+  document.getElementById("rProtein").value=it.protein;
+  document.getElementById("rUnit").value=it.unit;
+  editRefId=id;
+  document.getElementById("rAdd").textContent="Update";
+  document.getElementById("rCancel").style.display="";
+  document.getElementById("rName").focus();
+}
+function cancelEditRef(){
+  editRefId=null;
+  document.getElementById("rAdd").textContent="Save";
+  document.getElementById("rCancel").style.display="none";
+  document.getElementById("rName").value=""; document.getElementById("rCal").value=""; document.getElementById("rProtein").value="";
+}
+document.getElementById("rCancel").onclick=cancelEditRef;
 document.getElementById("rAdd").onclick=async()=>{
   const name=document.getElementById("rName").value.trim();
   const cal=parseFloat(document.getElementById("rCal").value);
@@ -287,9 +313,15 @@ document.getElementById("rAdd").onclick=async()=>{
   const unit=document.getElementById("rUnit").value;
   if(!name||isNaN(cal))return;
   try{
-    await api("/api/reference",{method:"POST",body:JSON.stringify({name,cal,protein,unit})});
-    document.getElementById("rName").value=""; document.getElementById("rCal").value=""; document.getElementById("rProtein").value="";
-    loadRef();
+    if(editRefId!=null){
+      await api("/api/reference/"+editRefId,{method:"PUT",body:JSON.stringify({name,cal,protein,unit})});
+      cancelEditRef();
+      loadRef(); loadDay();   // log entries may have changed, refresh totals
+    }else{
+      await api("/api/reference",{method:"POST",body:JSON.stringify({name,cal,protein,unit})});
+      document.getElementById("rName").value=""; document.getElementById("rCal").value=""; document.getElementById("rProtein").value="";
+      loadRef();
+    }
   }catch(e){ offline(); }
 };
 

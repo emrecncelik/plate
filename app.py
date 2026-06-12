@@ -182,6 +182,38 @@ def add_user_reference(uid, name, cal, protein, unit, aliases):
         conn.close()
 
 
+def update_user_reference(uid, ref_id, name, cal, protein, unit):
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT name FROM reference WHERE id=? AND user_id=?", (ref_id, uid)
+        ).fetchone()
+        if not row:
+            return False
+        old_name = row["name"]
+        cal, protein = float(cal), float(protein)
+        low = name.lower()
+        aliases = list({low, low.split()[-1]})
+        conn.execute(
+            "UPDATE reference SET name=?, cal=?, protein=?, unit=?, aliases=? WHERE id=? AND user_id=?",
+            (name, cal, protein, unit, json.dumps(aliases), ref_id, uid),
+        )
+        # Recompute every past log entry that referenced the old name, using its
+        # own quantity, so history stays consistent with the edited values.
+        entries = conn.execute(
+            "SELECT id, qty FROM log WHERE user_id=? AND name=?", (uid, old_name)
+        ).fetchall()
+        for e in entries:
+            conn.execute(
+                "UPDATE log SET name=?, unit=?, cal=?, protein=? WHERE id=?",
+                (name, unit, round(e["qty"] * cal), round(e["qty"] * protein, 1), e["id"]),
+            )
+        conn.commit()
+        return True
+    finally:
+        conn.close()
+
+
 def delete_user_reference(uid, ref_id):
     conn = get_db()
     try:
@@ -514,6 +546,21 @@ def add_reference():
     low = name.lower()
     aliases = list({low, low.split()[-1]})
     add_user_reference(g.uid, name, cal, protein, unit, aliases)
+    return jsonify(user_reference(g.uid))
+
+
+@app.put("/api/reference/<int:ref_id>")
+@login_required
+def update_reference(ref_id):
+    body = request.get_json(force=True)
+    name = (body.get("name") or "").strip()
+    cal = body.get("cal")
+    protein = body.get("protein") or 0
+    unit = body.get("unit", "g")
+    if not name or cal is None:
+        return jsonify({"error": "name and cal are required"}), 400
+    if not update_user_reference(g.uid, ref_id, name, cal, protein, unit):
+        return jsonify({"error": "not found"}), 404
     return jsonify(user_reference(g.uid))
 
 

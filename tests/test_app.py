@@ -170,6 +170,42 @@ class ReferenceTests(unittest.TestCase):
         login(cb, "B")
         self.assertEqual(cb.get("/api/reference").get_json(), [])
 
+    def test_edit_updates_item(self):
+        self.c.post("/api/reference", json={"name": "Rice", "cal": 2, "protein": 0.2, "unit": "g"})
+        rid = self.c.get("/api/reference").get_json()[0]["id"]
+        self.c.put(f"/api/reference/{rid}", json={"name": "Basmati", "cal": 1.3, "protein": 0.27, "unit": "g"})
+        ref = self.c.get("/api/reference").get_json()[0]
+        self.assertEqual((ref["name"], ref["cal"], ref["protein"]), ("Basmati", 1.3, 0.27))
+
+    def test_edit_propagates_to_existing_logs(self):
+        self.c.post("/api/reference", json={"name": "Chicken thigh", "cal": 2.3, "protein": 0.27, "unit": "g"})
+        rid = self.c.get("/api/reference").get_json()[0]["id"]
+        self.c.post("/api/log/2026-06-13", json={"meal": "Lunch", "text": "chicken 100 g"})
+        # edit the reference -> the already-logged entry must be recomputed
+        self.c.put(f"/api/reference/{rid}", json={"name": "Chicken breast", "cal": 1.65, "protein": 0.31, "unit": "g"})
+        entry = self.c.get("/api/log/2026-06-13").get_json()["Lunch"][0]
+        self.assertEqual(entry["name"], "Chicken breast")
+        self.assertEqual(entry["cal"], 165)       # round(100 * 1.65)
+        self.assertEqual(entry["protein"], 31.0)  # round(100 * 0.31, 1)
+
+    def test_edit_does_not_touch_other_users_logs(self):
+        # both users have an identically named food + log entry
+        self.c.post("/api/reference", json={"name": "Rice", "cal": 2, "unit": "g"})
+        self.c.post("/api/log/2026-06-13", json={"meal": "Lunch", "text": "rice 100 g"})
+        cb = app.app.test_client(); login(cb, "B")
+        cb.post("/api/reference", json={"name": "Rice", "cal": 2, "unit": "g"})
+        cb.post("/api/log/2026-06-13", json={"meal": "Lunch", "text": "rice 100 g"})
+        # A edits A's Rice
+        rid = self.c.get("/api/reference").get_json()[0]["id"]
+        self.c.put(f"/api/reference/{rid}", json={"name": "White rice", "cal": 3, "unit": "g"})
+        # B's entry is untouched
+        b_entry = cb.get("/api/log/2026-06-13").get_json()["Lunch"][0]
+        self.assertEqual(b_entry["name"], "Rice")
+        self.assertEqual(b_entry["cal"], 200)
+
+    def test_edit_missing_returns_404(self):
+        self.assertEqual(self.c.put("/api/reference/9999", json={"name": "X", "cal": 1}).status_code, 404)
+
 
 class LogTests(unittest.TestCase):
     def setUp(self):
