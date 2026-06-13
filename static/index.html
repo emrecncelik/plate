@@ -364,21 +364,19 @@ function showPreview(raw){
   pvTimer=setTimeout(async()=>{
     try{
       const {parsed}=await api("/api/parse",{method:"POST",body:JSON.stringify({text:raw})});
-      pv.innerHTML=parsed.map(p=>p.ok
-        ?`<span class="chip">${p.name} · ${p.qty}${p.unit==="g"?"g":"×"} · ${p.cal} cal · ${p.protein||0} P${p.alts?` +${p.alts.length-1}`:""}</span>`
-        :`<span class="chip miss">? ${p.name}</span>`).join("");
+      pv.innerHTML=parsed.map(p=>{
+        if(!p.ok) return `<span class="chip miss">? ${p.name}</span>`;
+        return (p.alts||[p]).map(o=>`<span class="chip">${o.name} · ${o.qty}${o.unit==="g"?"g":"×"} · ${o.cal} cal · ${o.protein||0} P</span>`).join("");
+      }).join("");
     }catch(e){ offline(); }
   },220);
 }
-async function commit(raw){
-  if(!raw.trim())return false;
-  try{
-    const res=await api("/api/log/"+keyOf(DAY),{method:"POST",body:JSON.stringify({meal:MEAL,text:raw})});
-    DAYDATA=res.day; render();
-    document.getElementById("text").value="";
-    document.getElementById("preview").innerHTML="";
-    return res.added.length>0;
-  }catch(e){ offline(); return false; }
+async function addTyped(){
+  const raw=document.getElementById("text").value;
+  if(!raw.trim())return;
+  await stageText(raw);
+  document.getElementById("text").value="";
+  document.getElementById("preview").innerHTML="";
 }
 
 let PENDING=[];
@@ -405,7 +403,7 @@ async function approve(gi,oi){
     PENDING.splice(gi,1); renderPending();
   }catch(e){ offline(); }
 }
-async function stageFromVoice(raw){
+async function stageText(raw){
   if(!raw.trim())return 0;
   try{
     const {parsed}=await api("/api/parse",{method:"POST",body:JSON.stringify({text:raw})});
@@ -419,8 +417,8 @@ async function stageFromVoice(raw){
 
 const textEl=document.getElementById("text");
 textEl.addEventListener("input",e=>showPreview(e.target.value));
-textEl.addEventListener("keydown",e=>{ if(e.key==="Enter")commit(textEl.value); });
-document.getElementById("addBtn").onclick=()=>commit(textEl.value);
+textEl.addEventListener("keydown",e=>{ if(e.key==="Enter")addTyped(); });
+document.getElementById("addBtn").onclick=addTyped;
 document.getElementById("tabs").addEventListener("click",e=>{
   const b=e.target.closest("button"); if(!b)return;
   MEAL=b.dataset.m;
@@ -459,7 +457,7 @@ async function startRec(){
         const r = await fetch(API + "/api/transcribe", {method:"POST", body:fd});
         const data = await r.json();
         if(data.text){
-          const n = await stageFromVoice(data.text);
+          const n = await stageText(data.text);
           hint.textContent = n ? "tap items to add ↑" : `heard "${data.text}" — no match`;
         }else{
           hint.textContent = data.error === "asr_unavailable"
